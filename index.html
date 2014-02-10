@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Similar music</title>
+<link href="./css/bootstrap.css" rel="stylesheet">
+<link href="./css/bootstrap-responsive.css" rel="stylesheet">
+<script type="text/javascript" src="./js/jquery-1.6.1.min.js"></script>
+<script type="text/javascript">
+<!--
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+	var firstScriptTag = document.getElementsByTagName('script')[0];
+	var player;
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);    //youtubeをスタートさせるタグっぽい
+    var speed = 300;// ミリ秒
+
+	$(function(){
+	    $("#artist_search").click(function(){
+			var input_name = $("#artist_name1").val();	//テキストフォームのアーティスト名を取得
+			if(input_name){
+				artist_acquisition(input_name);				//アーティスト名で検索
+			}else{
+				alert("アーティスト名を入力してください")
+                //$.mobile.changePage('#error1', {transition: 'pop', role: 'dialog'});
+			}
+	    });
+	    
+	    $("#artist_search2").click(function(){
+			var input_name = $("#artist_name1").val();	//テキストフォームのアーティスト名を取得
+			if(input_name){
+				artist_acquisition(input_name);				//アーティスト名で検索
+			}else{
+				alert("アーティスト名を入力してください")
+                //$.mobile.changePage('#error1', {transition: 'pop', role: 'dialog'});
+			}
+	    });
+
+	});
+
+	var m_link = new Array();
+	var a_num = 15;
+	var t_num = 4;
+	var first_movie = "";
+	var cnt2 = 0;
+	var a_cnt = 0;
+	var cnt = 0;
+
+	function fillinform(self) {
+	  $("#artist_name1").val(self.value);
+	  $("#artist_name2").val(self.value);
+	}
+
+	function artist_acquisition(input_name){
+		$("#artist_search").animate({opacity: 0.5}, 'slow');
+		$("#artist_search2").animate({opacity: 0.5}, 'slow');
+		$("#artist_name1").animate({opacity: 0.5}, 'slow');
+		$("#artist_name2").animate({opacity: 0.5}, 'slow');
+
+	    setTimeout(function(){
+			$("#loading").fadeIn("slow");
+	    },1000);
+
+        first_movie = "";
+		var all_cnt = 0;
+		var m_area = "";
+		cnt = 0;
+		m_link = new Array();
+		//Last.fmから、送信されたアーティストに似たアーティストを取得
+		//除外された(する)アーティストも出ると思うので、とりあえず10件取得
+		var i_name = input_name.replace(/ /g,"+");	//半角空白を+に置換　(アーティスト名)　　例：BUMP OF CHICKEN →　BUMP+OF+CHICKEN
+		a_cnt = 0;
+
+		$.getJSON("http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&artist="+i_name+"&api_key=673571f1534aa812afd4ac9cc791ddc5&format=json&limit="+a_num,
+			function(json){
+				if(json.similarartists==null || json.similarartists.artist.length <= 10){
+				}else{
+					json.similarartists.artist.forEach(
+						function(artist, i) {
+						var a_name = artist.name.replace(/ /g,"+");	//半角空白を+に置換　(アーティスト名)　　例：BUMP OF CHICKEN →　BUMP+OF+CHICKEN
+
+						//アーティストの再生回数の多いトラックトップ10を取得
+						//除外された(する)曲のことも考えると、とりあえず5件取得
+						a_cnt++;
+						cnt2 = 0;
+						$.getJSON("http://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&artist="+a_name+"&api_key=673571f1534aa812afd4ac9cc791ddc5&format=json&limit="+t_num,
+							function(json2){
+								if(typeof json2.toptracks!=='undefined'){
+									json2.toptracks.track.forEach(function(track, j) {
+										var t_name = track.name.replace(/ /g,"+");	//半角空白を+に置換 (曲名)　　例：sailing day →　sailing+day
+										cnt2++;
+										//youtubeから、動画を取得
+										//アーティスト名+曲名、上位のものを一件取得
+										$.ajax({
+											url: "http://gdata.youtube.com/feeds/api/videos?max-results=1&alt=json&vq="+a_name+"+"+t_name, // ポスト先のURL
+											type: 'GET',
+											dataType: 'json',
+
+											success: function(json3) {
+												if(json3.feed.entry){
+													json3.feed.entry.forEach(function(movie, i) {
+														//movie.title[0].$t
+														var id = movie_id(movie.link[0].href);
+														cnt++;
+														m_link[cnt] = id+","+artist.name+","+track.name;
+													});
+												}
+											}, 
+											complete: function(xhr, status) {
+												cnt2--;
+												if(a_num==a_cnt&&cnt2==0){shuffle(m_link)};
+											} 
+										});
+									});
+								}
+						});
+					});
+				}
+	    });
+	}
+
+
+	function shuffle(m_link){	//配列に入っている曲情報ををシャッフルします
+		var i = m_link.length;
+
+		while (--i) {
+			var j = Math.floor(Math.random() * (i + 1));
+			if (i == j) continue;
+				var k = m_link[i];
+				m_link[i] = m_link[j];
+				m_link[j] = k;
+		}
+
+		$("#box2").show();
+		$("#search_bar").show();
+
+		list_display(m_link);
+	}
+
+	function list_display(m_link) {	//曲情報を表示します
+		var m_area = "";
+		for (var i=1 ; i<=9 ; i++){
+			if(m_link[i]){
+				var data = m_link[i].split(",");
+				if(i==1){first_movie=data[0];}
+				m_area += '<a onclick="youtube_movie_set(\''+data[0]+'\','+i+');">'+data[1]+' - '+data[2]+'</a>';
+			}
+		}
+
+		var lastData = m_link[10].split(",");
+		m_area += '<a onclick="youtube_movie_set(\''+lastData[0]+'\','+i+');" >'+lastData[1]+' - '+lastData[2]+'</a>';
+
+		$("#track_list").html(m_area).trigger('create');
+
+		var href= $(this).attr("href");
+		href = "#search_bar";
+		// 移動先を取得
+		var target = $(href == "#" || href == "" ? 'html' : href);
+		// 移動先を数値で取得
+		var position = target.offset().top;
+
+        setTimeout(function(){
+			$("#artist_search").animate({opacity: 1}, 'slow');
+			$("#artist_search2").animate({opacity: 1}, 'slow');
+			$("#artist_name1").animate({opacity: 1}, 'slow');
+			$("#artist_name2").animate({opacity: 1}, 'slow');
+
+			// スムーススクロール
+			$($.browser.safari ? 'body' : 'html').animate({scrollTop:position}, speed, 'swing');
+			youtube_movie_set(first_movie,1);
+	    },1500);
+}
+
+
+	function movie_id(url){
+		var del_text1 = "http://www.youtube.com/watch?v=";
+		var del_text2 = "&feature=youtube_gdata";
+
+		url = url.replace(del_text1, "");
+		url = url.replace(del_text2, "");
+		return url;
+	}
+
+	
+	function onYouTubePlayerAPIReady() {
+		player = new YT.Player('player', {
+			playerVars: {
+                'autoplay': 0,
+                'controls': 1,
+			    "rel": 0,            // 関連動画を表示しない
+			    "wmode": "opaque"
+			},
+			events: {
+				'onReady': onPlayerReady,
+				'onStateChange': onPlayerStateChange
+			}			
+		});	
+	}
+	var movie_no = 1;
+
+	function youtube_movie_set(id,i) {
+		player.loadVideoById(id);
+		movie_no = i;
+	}
+	function onPlayerReady(event) {}
+
+	//動画の再生状態が変わったときに実行される関数
+	function onPlayerStateChange(event){		
+		switch(event.data){
+			 case YT.PlayerState.ENDED:
+			 	movie_no++;
+			 	var data = m_link[movie_no].split(",");
+			 	player.loadVideoById(data[0]);
+                if(movie_no==10){}
+				break;
+			 case YT.PlayerState.PLAYING:
+				break;
+			 case YT.PlayerState.PAUSED:
+				break;
+			 case YT.PlayerState.BUFFERING:
+				break;
+			 case YT.PlayerState.CUED:
+				break;
+		}
+	}	
+-->
+</script>
+<style>
+body{
+	margin:0;
+	padding:0;
+	background-color:#FFBF00;
+	overflow: hidden;
+}
+
+#wrapper {
+    position:absolute;
+    top:0;
+    right:0;
+    bottom:0;
+    left:0;
+}
+
+#box {
+    width:650px;
+    height:300px;
+    position:absolute;
+
+    top:50%;
+    left:50%;
+    margin:-160px 0 0 -325px;
+}
+	#form_area{
+		width:600px;
+		padding:10px 0px 20px 90px;
+	}
+
+	#artist_name1{
+		width:390px;
+		padding:21px;
+		margin-right:10px;
+	}
+
+	#artist_name2{
+		width:390px;
+		padding:21px;
+		margin-right:10px;
+	}	
+
+#search_bar{
+	width:100%;
+	height:75px;
+	background:#000000;
+    position:absolute;
+    top:100%;	
+	display:none;
+}
+	#search_bar img{
+	    position:absolute;
+	    left:50%;
+	    margin:0 0 0 -420px;
+	}
+
+	#bar_form_area{
+	    position:absolute;
+	    left:50%;
+	    margin:15px 0 0 -100px;	    
+	}
+
+
+#box2 {
+	width:950px;
+	height:530px;
+    position:absolute;
+    top:120%;
+	left:50%;
+	margin:0 0 0 -460px;
+	display:none;
+}
+	#track_list{
+		float:left;
+		margin-left:20px;
+		width:410px;
+		height:400px;
+		background-color:#f0f0f0;
+	}
+
+		#track_list a{
+			display:block;
+			padding:10px;
+		}
+
+</style>
+</head>
+<body>
+	<div id="wrapper">
+		<div id="box">
+			<img src="./image/main.png">
+			<div id="form_area">
+				<input type="text" id="artist_name1" class="form-control col-sm-2" placeholder="好きなアーティスト名を入力して下さい" onkeyup="fillinform(this);" />
+				<a id="artist_search" class="btn btn-lg btn-success">検索する</a>
+				<div id="loading" style="position:absolute; top:80%; left:40%; display:none;"><img src="./image/loading.gif" /></div>
+			</div>
+		</div>
+		<div id="search_bar">
+			<img src="./image/bar.png" />
+			<div id="bar_form_area">
+				<input type="text" id="artist_name2" class="form-control col-sm-2" placeholder="好きなアーティスト名を入力して下さい" onkeyup="fillinform(this);"  style="width:400px;"/>
+				<a id="artist_search2" class="btn btn-lg btn-success">検索する</a>
+			</div>
+		</div>
+		<div id="box2">
+			<div id="player" style="width:500px; height:400px; float:left;"></div>
+			<div id="track_list">
+				<div id=""></div>
+			</div>
+		</div>
+	</div>
+</body>
+</html>
