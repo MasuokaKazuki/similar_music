@@ -61,7 +61,7 @@
 
 	    setTimeout(function(){
 			$("#loading").fadeIn("slow");
-	    },1000);
+	    },500);
 
         first_movie = "";
 		var all_cnt = 0;
@@ -166,6 +166,7 @@
 			$("#artist_search2").animate({opacity: 1}, 'slow');
 			$("#artist_name1").animate({opacity: 1}, 'slow');
 			$("#artist_name2").animate({opacity: 1}, 'slow');
+			$("#loading").animate({opacity: 0}, 'slow');
 
 			// スムーススクロール
 			$($.browser.safari ? 'body' : 'html').animate({scrollTop:position}, speed, 'swing');
